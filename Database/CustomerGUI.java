@@ -11,21 +11,34 @@ import java.util.List;
 
 public class CustomerGUI extends JFrame {
     private String loggedInCustomerId;
-    private JTextArea resultArea;
+    private JTable resultsTable;
 
     public CustomerGUI() {
+        ModernUI.setupLaf();
         setTitle("Customer Menu");
         setSize(900, 700);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         setLayout(new BorderLayout());
-        
+
         if (showLoginOrRegister()) {
             createCustomerGUI();
         } else {
             dispose();
         }
     }
-    
+    public CustomerGUI(String customerId) {
+        ModernUI.setupLaf();
+        setTitle("Customer");
+        setSize(1100, 700);
+        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        setLayout(new BorderLayout());
+        loggedInCustomerId = customerId;
+        createCustomerGUI();
+        setLocationRelativeTo(null);
+        setVisible(true);
+    }
+
+
     private boolean showLoginOrRegister() {
         String[] options = {"Login", "Register as New Customer", "Cancel"};
         int choice = JOptionPane.showOptionDialog(this,
@@ -36,7 +49,7 @@ public class CustomerGUI extends JFrame {
             null,
             options,
             options[0]);
-        
+
         switch (choice) {
             case 0: return loginCustomer();
             case 1: return registerNewCustomer();
@@ -48,32 +61,32 @@ public class CustomerGUI extends JFrame {
         JPanel loginPanel = new JPanel(new GridLayout(2, 2, 10, 10));
         JTextField customerIdField = new JTextField();
         JTextField emailField = new JTextField();
-        
+
         loginPanel.add(new JLabel("Customer ID:"));
         loginPanel.add(customerIdField);
         loginPanel.add(new JLabel("Email:"));
         loginPanel.add(emailField);
-        
-        int result = JOptionPane.showConfirmDialog(this, loginPanel, "Customer Login", 
+
+        int result = JOptionPane.showConfirmDialog(this, loginPanel, "Customer Login",
                                                   JOptionPane.OK_CANCEL_OPTION);
-        
+
         if (result == JOptionPane.OK_OPTION) {
             String inputCustomerId = customerIdField.getText().trim();
             String inputEmail = emailField.getText().trim();
-            
+
             if (inputCustomerId.isEmpty() || inputEmail.isEmpty()) {
                 JOptionPane.showMessageDialog(this, "Please enter both Customer ID and Email");
                 return false;
             }
-            
+
             try (Connection conn = DBConnection.getConnection()) {
                 String sql = "SELECT Customer_id FROM CUSTOMER WHERE Customer_id = ? AND Cemail = ?";
                 PreparedStatement stmt = conn.prepareStatement(sql);
                 stmt.setString(1, inputCustomerId);
                 stmt.setString(2, inputEmail);
-                
+
                 ResultSet rs = stmt.executeQuery();
-                
+
                 if (rs.next()) {
                     loggedInCustomerId = inputCustomerId;
                     return true;
@@ -89,10 +102,10 @@ public class CustomerGUI extends JFrame {
         }
         return false;
     }
-    
+
     private boolean registerNewCustomer() {
         JPanel panel = new JPanel(new GridLayout(9, 2, 10, 10));
-        
+
         JTextField customerIdField = new JTextField();
         JTextField fnameField = new JTextField();
         JTextField mnameField = new JTextField();
@@ -102,7 +115,7 @@ public class CustomerGUI extends JFrame {
         JTextField streetField = new JTextField();
         JTextField emailField = new JTextField();
         JTextField phoneField = new JTextField();
-        
+
         panel.add(new JLabel("Customer ID* (C + numbers):"));
         panel.add(customerIdField);
         panel.add(new JLabel("First Name*:"));
@@ -121,16 +134,15 @@ public class CustomerGUI extends JFrame {
         panel.add(emailField);
         panel.add(new JLabel("Phone*:"));
         panel.add(phoneField);
-        
-        int result = JOptionPane.showConfirmDialog(this, panel, "Register New Customer", 
+
+        int result = JOptionPane.showConfirmDialog(this, panel, "Register New Customer",
                                                   JOptionPane.OK_CANCEL_OPTION);
-        
+
         if (result == JOptionPane.OK_OPTION) {
             String customerId = customerIdField.getText().trim();
-            
-            // Validate all fields
-            if (customerId.isEmpty() || 
-                fnameField.getText().trim().isEmpty() || 
+
+            if (customerId.isEmpty() ||
+                fnameField.getText().trim().isEmpty() ||
                 lnameField.getText().trim().isEmpty() ||
                 instagramField.getText().trim().isEmpty() ||
                 emailField.getText().trim().isEmpty() ||
@@ -138,13 +150,13 @@ public class CustomerGUI extends JFrame {
                 JOptionPane.showMessageDialog(this, "Please fill all required fields (*)");
                 return false;
             }
-            
+
             try (Connection conn = DBConnection.getConnection()) {
                 String checkSql = "SELECT Customer_id FROM CUSTOMER WHERE Customer_id = ?";
                 PreparedStatement checkStmt = conn.prepareStatement(checkSql);
-                checkStmt.setString(1, customerId.toUpperCase()); 
+                checkStmt.setString(1, customerId.toUpperCase());
                 ResultSet rs = checkStmt.executeQuery();
-                
+
                 if (rs.next()) {
                     JOptionPane.showMessageDialog(this, "Customer ID already exists! Please choose a different one.");
                     return false;
@@ -154,39 +166,39 @@ public class CustomerGUI extends JFrame {
                 JOptionPane.showMessageDialog(this, "Error checking Customer ID availability");
                 return false;
             }
-            
-       
+
+
             if (!customerId.toUpperCase().matches("^C\\d+$")) {
                 JOptionPane.showMessageDialog(this, "Customer ID must start with 'C' followed by numbers (e.g., C001, C123)");
                 return false;
             }
-            
-     
+
+
             if (!isValidName(fnameField.getText()) || !isValidName(lnameField.getText()) ||
                 (!mnameField.getText().trim().isEmpty() && !isValidName(mnameField.getText()))) {
                 JOptionPane.showMessageDialog(this, "Name fields can only contain letters!");
                 return false;
             }
 
-       
+
             if (!cityField.getText().trim().isEmpty() && !isValidCityStreet(cityField.getText())) {
                 JOptionPane.showMessageDialog(this, "City can only contain letters and spaces!");
                 return false;
             }
 
-         
+
             if (!streetField.getText().trim().isEmpty() && !isValidCityStreet(streetField.getText())) {
                 JOptionPane.showMessageDialog(this, "Street can only contain letters and spaces!");
                 return false;
             }
 
-    
+
             if (!isValidInstagram(instagramField.getText())) {
                 JOptionPane.showMessageDialog(this, "Instagram username can only contain letters, numbers, dots (.), and underscores (_)!");
                 return false;
             }
 
-       
+
             if (!isValidEmail(emailField.getText())) {
                 JOptionPane.showMessageDialog(this, "Invalid email format! Use: name@domain.com");
                 return false;
@@ -196,13 +208,13 @@ public class CustomerGUI extends JFrame {
                 JOptionPane.showMessageDialog(this, "Phone number must be 10 or 12 digits and contain only numbers!");
                 return false;
             }
-            
+
             try (Connection conn = DBConnection.getConnection()) {
                 String sql = "INSERT INTO CUSTOMER (Customer_id, Fname, Mname, Lname, Instagram_user, City, Street_name, Cemail, Cphone_number) " +
                             "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
-                
+
                 PreparedStatement stmt = conn.prepareStatement(sql);
-                stmt.setString(1, customerId.toUpperCase()); 
+                stmt.setString(1, customerId.toUpperCase());
                 stmt.setString(2, fnameField.getText().trim());
                 stmt.setString(3, mnameField.getText().trim());
                 stmt.setString(4, lnameField.getText().trim());
@@ -211,13 +223,13 @@ public class CustomerGUI extends JFrame {
                 stmt.setString(7, streetField.getText().trim());
                 stmt.setString(8, emailField.getText().trim());
                 stmt.setString(9, phoneField.getText().trim());
-                
+
                 stmt.executeUpdate();
-                
+
                 loggedInCustomerId = customerId.toUpperCase();
                 JOptionPane.showMessageDialog(this, "Registration successful!");
                 return true;
-                
+
             } catch (SQLException ex) {
                 ex.printStackTrace();
                 JOptionPane.showMessageDialog(this, "Error registering: " + ex.getMessage());
@@ -226,7 +238,7 @@ public class CustomerGUI extends JFrame {
         }
         return false;
     }
-    
+
     private boolean isValidName(String name) {
         return Pattern.matches("^[a-zA-Z\\s]+$", name);
     }
@@ -248,102 +260,149 @@ public class CustomerGUI extends JFrame {
     private boolean isValidInstagram(String instagram) {
         return Pattern.matches("^[a-zA-Z0-9._]+$", instagram);
     }
-    
+
 
     private void createCustomerGUI() {
-        JLabel welcomeLabel = new JLabel("Welcome ", JLabel.CENTER);
-        welcomeLabel.setFont(new Font("Arial", Font.BOLD, 16));
+        JPanel root = new JPanel(new BorderLayout());
+        root.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
 
-        JPanel welcomePanel = new JPanel(new BorderLayout());
-        welcomePanel.add(welcomeLabel, BorderLayout.CENTER);
+        JPanel top = new JPanel(new BorderLayout(12, 0));
+        top.setBorder(BorderFactory.createEmptyBorder(10, 12, 10, 12));
+        top.setBackground(new Color(20, 24, 32));
 
-        JButton logoutBtn = new JButton("Logout");
+        JLabel title = new JLabel("Photography Equipment Rental");
+        title.setForeground(Color.WHITE);
+        title.setFont(new Font("SansSerif", Font.BOLD, 18));
+
+        JLabel subtitle = new JLabel("Customer: " + loggedInCustomerId);
+        subtitle.setForeground(new Color(200, 205, 215));
+        subtitle.setFont(new Font("SansSerif", Font.PLAIN, 13));
+
+        JPanel titleBox = new JPanel(new GridLayout(2,1));
+        titleBox.setOpaque(false);
+        titleBox.add(title);
+        titleBox.add(subtitle);
+
+        JButton logoutBtn = ModernUI.primaryButton("Logout");
         logoutBtn.addActionListener(e -> {
-            int confirm = JOptionPane.showConfirmDialog(this, "Are you sure you want to logout?", "Confirm Logout", JOptionPane.YES_NO_OPTION);
+            int confirm = JOptionPane.showConfirmDialog(this, "Logout?", "Confirm", JOptionPane.YES_NO_OPTION);
             if (confirm == JOptionPane.YES_OPTION) {
                 dispose();
                 new MainMenu().setVisible(true);
             }
         });
-        welcomePanel.add(logoutBtn, BorderLayout.EAST);
-        add(welcomePanel, BorderLayout.NORTH);
 
-        JTabbedPane tabbedPane = new JTabbedPane();
-        tabbedPane.addTab("My Profile", createProfilePanel());
-        tabbedPane.addTab("Browse Equipment", createEquipmentPanel());
-        tabbedPane.addTab("My Rentals", createRentalPanel());
-        tabbedPane.addTab("My Bills", createBillPanel());
-        tabbedPane.addTab("Queries", createQueriesPanel()); 
+        top.add(titleBox, BorderLayout.WEST);
+        top.add(logoutBtn, BorderLayout.EAST);
 
-        resultArea = new JTextArea();
-        resultArea.setRows(10); 
-        resultArea.setColumns(50);
-        resultArea.setLineWrap(true);
-        resultArea.setWrapStyleWord(true);
-        JScrollPane scrollPane = new JScrollPane(resultArea);
+        JPanel sidebar = ModernUI.sidebar();
+        JButton navProfile  = ModernUI.navButton("My profile");
+        JButton navBrowse   = ModernUI.navButton("Browse equipment");
+        JButton navRent     = ModernUI.navButton("Create rental");
+        JButton navBills    = ModernUI.navButton("Bills");
+        JButton navQueries  = ModernUI.navButton("Queries");
 
-        JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, tabbedPane, scrollPane);
-        splitPane.setResizeWeight(0.7);   
-        splitPane.setOneTouchExpandable(true);  
+        sidebar.add(ModernUI.sidebarHeader("Menu"));
+        sidebar.add(navProfile);
+        sidebar.add(navBrowse);
+        sidebar.add(navRent);
+        sidebar.add(navBills);
+        sidebar.add(navQueries);
+        sidebar.add(Box.createVerticalGlue());
 
-        add(splitPane, BorderLayout.CENTER);
+        CardLayout cardsLayout = new CardLayout();
+        JPanel cards = new JPanel(cardsLayout);
+        cards.setOpaque(false);
 
+        cards.add(ModernUI.card("My Profile", createProfilePanel()), "PROF");
+        cards.add(ModernUI.card("Browse Equipment", createEquipmentPanel()), "BROWSE");
+        cards.add(ModernUI.card("Create Rental", createRentalPanel()), "RENT");
+        cards.add(ModernUI.card("Bills", createBillPanel()), "BILLS");
+        cards.add(ModernUI.card("Queries", createQueriesPanel()), "Q");
+
+        
+resultsTable = ModernUI.makeResultsTable();
+JScrollPane consoleScroll = new JScrollPane(resultsTable);
+consoleScroll.setBorder(BorderFactory.createEmptyBorder());
+JPanel consoleCard = ModernUI.card("", consoleScroll);
+
+        JSplitPane vertical = new JSplitPane(JSplitPane.VERTICAL_SPLIT, cards, consoleCard);
+        vertical.setResizeWeight(0.72);
+        vertical.setBorder(null);
+
+        JSplitPane horizontal = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, sidebar, vertical);
+        horizontal.setResizeWeight(0.18);
+        horizontal.setBorder(null);
+
+        root.add(top, BorderLayout.NORTH);
+        root.add(horizontal, BorderLayout.CENTER);
+
+        setContentPane(root);
+        setLocationRelativeTo(null);
         setVisible(true);
-    }
 
-   
+        navProfile.addActionListener(e -> cardsLayout.show(cards, "PROF"));
+        navBrowse.addActionListener(e -> cardsLayout.show(cards, "BROWSE"));
+        navRent.addActionListener(e -> cardsLayout.show(cards, "RENT"));
+        navBills.addActionListener(e -> cardsLayout.show(cards, "BILLS"));
+        navQueries.addActionListener(e -> cardsLayout.show(cards, "Q"));
+        cardsLayout.show(cards, "BROWSE");
+
+}
+
+
     private JPanel createProfilePanel() {
         JPanel panel = new JPanel(new GridLayout(5, 1, 10, 10));
         panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-        
+
         JButton viewProfileBtn = new JButton("View My Profile");
-       
+
         JButton updateProfileBtn = new JButton("Update My Profile");
         JButton deleteAccountBtn = new JButton("Delete My Account");
-        
+
         panel.add(viewProfileBtn);
-        
+
         panel.add(updateProfileBtn);
         panel.add(deleteAccountBtn);
-        
+
         viewProfileBtn.addActionListener(e -> viewMyProfile());
-        
+
         updateProfileBtn.addActionListener(e -> updateMyProfile());
         deleteAccountBtn.addActionListener(e -> deleteMyAccount());
-        
+
         return panel;
     }
-    
+
     private void viewMyProfile() {
         try (Connection conn = DBConnection.getConnection()) {
             String sql = "SELECT Fname, Mname, Lname, Instagram_user, City, Street_name, Cemail, Cphone_number " +
                         "FROM CUSTOMER WHERE Customer_id = ?";
-            
+
             PreparedStatement stmt = conn.prepareStatement(sql);
             stmt.setString(1, loggedInCustomerId);
-            
+
             ResultSet rs = stmt.executeQuery();
-            
+
             if (rs.next()) {
                 String profile = "=== MY PROFILE ===\n" +
                                "Customer ID: " + loggedInCustomerId + "\n" +
-                               "Name: " + rs.getString("Fname") + " " + 
-                               (rs.getString("Mname") != null ? rs.getString("Mname") + " " : "") + 
+                               "Name: " + rs.getString("Fname") + " " +
+                               (rs.getString("Mname") != null ? rs.getString("Mname") + " " : "") +
                                rs.getString("Lname") + "\n" +
                                "Instagram: " + rs.getString("Instagram_user") + "\n" +
                                "Address: " + rs.getString("City") + ", " + rs.getString("Street_name") + "\n" +
                                "Email: " + rs.getString("Cemail") + "\n" +
                                "Phone: " + rs.getString("Cphone_number");
-                resultArea.setText(profile);
+                ModernUI.populateSingleColumn(resultsTable, "Profile", profile);
             } else {
-                resultArea.setText("Customer not found!");
+                ModernUI.populateSingleColumn(resultsTable, "Message", "Customer not found!");
             }
         } catch (SQLException ex) {
             ex.printStackTrace();
-            resultArea.setText("Error retrieving profile: " + ex.getMessage());
+            JOptionPane.showMessageDialog(this, "Error retrieving profile: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
-    
+
     private void updateMyProfile() {
 
         String currentEmail = "", currentPhone = "", currentCity = "", currentStreet = "";
@@ -361,13 +420,13 @@ public class CustomerGUI extends JFrame {
         } catch (SQLException ex) {
             ex.printStackTrace();
         }
-        
+
         JPanel panel = new JPanel(new GridLayout(5, 2, 10, 10));
         JTextField emailField = new JTextField(currentEmail);
         JTextField phoneField = new JTextField(currentPhone);
         JTextField cityField = new JTextField(currentCity);
         JTextField streetField = new JTextField(currentStreet);
-        
+
         panel.add(new JLabel("Email*:"));
         panel.add(emailField);
         panel.add(new JLabel("Phone*:"));
@@ -376,12 +435,12 @@ public class CustomerGUI extends JFrame {
         panel.add(cityField);
         panel.add(new JLabel("Street:"));
         panel.add(streetField);
-        
-        int result = JOptionPane.showConfirmDialog(this, panel, "Update Profile", 
+
+        int result = JOptionPane.showConfirmDialog(this, panel, "Update Profile",
                                                   JOptionPane.OK_CANCEL_OPTION);
-        
+
         if (result == JOptionPane.OK_OPTION) {
-            
+
         	if (emailField.getText().trim().isEmpty() || phoneField.getText().trim().isEmpty()) {
         	    JOptionPane.showMessageDialog(this, "Email and Phone are required!");
         	    return;
@@ -406,52 +465,51 @@ public class CustomerGUI extends JFrame {
         	    JOptionPane.showMessageDialog(this, "Phone must contain only numbers and be 10 or 12 digits!");
         	    return;
         	}
-            
+
             try (Connection conn = DBConnection.getConnection()) {
                 String sql = "UPDATE CUSTOMER SET Cemail = ?, Cphone_number = ?, City = ?, Street_name = ? " +
                             "WHERE Customer_id = ?";
-                
+
                 PreparedStatement stmt = conn.prepareStatement(sql);
                 stmt.setString(1, emailField.getText());
                 stmt.setString(2, phoneField.getText());
                 stmt.setString(3, cityField.getText());
                 stmt.setString(4, streetField.getText());
                 stmt.setString(5, loggedInCustomerId);
-                
+
                 int rows = stmt.executeUpdate();
                 if (rows > 0) {
-                    resultArea.setText("Profile updated successfully!");
-                } else {
-                    resultArea.setText("Failed to update profile.");
+                    ModernUI.populateSingleColumn(resultsTable, "Message", "Profile updated successfully.");} else {
+                    ModernUI.populateSingleColumn(resultsTable, "Message", "Failed to update profile.");
                 }
             } catch (SQLException ex) {
                 ex.printStackTrace();
-                resultArea.setText("Error updating profile: " + ex.getMessage());
+                JOptionPane.showMessageDialog(this, "Error updating profile: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
             }
         }
     }
-    
+
     private void deleteMyAccount() {
-        int confirm = JOptionPane.showConfirmDialog(this, 
-            "Are you sure you want to delete your account? This cannot be undone!", 
+        int confirm = JOptionPane.showConfirmDialog(this,
+            "Are you sure you want to delete your account? This cannot be undone!",
             "Confirm Delete", JOptionPane.YES_NO_OPTION);
-            
+
         if (confirm == JOptionPane.YES_OPTION) {
             try (Connection conn = DBConnection.getConnection()) {
                 String sql = "DELETE FROM CUSTOMER WHERE Customer_id = ?";
                 PreparedStatement stmt = conn.prepareStatement(sql);
                 stmt.setString(1, loggedInCustomerId);
-                
+
                 int rows = stmt.executeUpdate();
                 if (rows > 0) {
                     JOptionPane.showMessageDialog(this, "Account deleted successfully!");
                     dispose();
                 } else {
-                    resultArea.setText("Failed to delete account.");
+                    ModernUI.populateSingleColumn(resultsTable, "Message", "Failed to delete account.");
                 }
             } catch (SQLException ex) {
                 ex.printStackTrace();
-                resultArea.setText("Error deleting account: " + ex.getMessage());
+                JOptionPane.showMessageDialog(this, "Error deleting account: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
             }
         }
     }
@@ -459,52 +517,37 @@ public class CustomerGUI extends JFrame {
     private JPanel createEquipmentPanel() {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-        
+
         JButton viewEquipmentBtn = new JButton("Browse Available Equipment");
         JButton searchEquipmentBtn = new JButton("Search Equipment by Type");
-        
+
         JPanel buttonPanel = new JPanel(new GridLayout(2, 1, 10, 10));
         buttonPanel.add(viewEquipmentBtn);
         buttonPanel.add(searchEquipmentBtn);
-        
+
         panel.add(buttonPanel, BorderLayout.NORTH);
-        
+
         viewEquipmentBtn.addActionListener(e -> browseAvailableEquipment());
         searchEquipmentBtn.addActionListener(e -> searchEquipmentByType());
-        
+
         return panel;
     }
-    
+
     private void browseAvailableEquipment() {
         try (Connection conn = DBConnection.getConnection()) {
             String sql = "SELECT Equipment_id, Qname, Type, Description, Rental_fee, Available_quantity " +
                         "FROM EQUIPMENT WHERE Available_quantity > 0";
-            
+
             Statement stmt = conn.createStatement();
             ResultSet rs = stmt.executeQuery(sql);
+
             
-            StringBuilder equipment = new StringBuilder("=== AVAILABLE EQUIPMENT ===\n");
-            boolean found = false;
-            while (rs.next()) {
-                found = true;
-                equipment.append("ID: ").append(rs.getString("Equipment_id"))
-                        .append(" | Name: ").append(rs.getString("Qname"))
-                        .append(" | Type: ").append(rs.getString("Type"))
-                        .append(" | Fee: $").append(rs.getDouble("Rental_fee"))
-                        .append(" | Available: ").append(rs.getInt("Available_quantity"))
-                        .append("\nDescription: ").append(rs.getString("Description"))
-                        .append("\n---------------------------\n");
-            }
-            if (!found) {
-                equipment.append("No equipment available at the moment.");
-            }
-            resultArea.setText(equipment.toString());
-        } catch (SQLException ex) {
+            ModernUI.populateTable(resultsTable, rs);} catch (SQLException ex) {
             ex.printStackTrace();
-            resultArea.setText("Error browsing equipment: " + ex.getMessage());
+            JOptionPane.showMessageDialog(this, "Error browsing equipment: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
-    
+
     private void searchEquipmentByType() {
         String[] equipmentTypes = {"Camera", "Lens", "Drone", "Stabilizer", "Tripod", "Studio Flash", "All Types"};
         String selectedType = (String) JOptionPane.showInputDialog(this,
@@ -514,12 +557,12 @@ public class CustomerGUI extends JFrame {
             null,
             equipmentTypes,
             equipmentTypes[0]);
-        
+
         if (selectedType != null) {
             try (Connection conn = DBConnection.getConnection()) {
                 String sql;
                 PreparedStatement stmt;
-                
+
                 if (selectedType.equals("All Types")) {
                     sql = "SELECT Equipment_id, Qname, Type, Description, Rental_fee, Available_quantity " +
                          "FROM EQUIPMENT WHERE Available_quantity > 0";
@@ -530,27 +573,13 @@ public class CustomerGUI extends JFrame {
                     stmt = conn.prepareStatement(sql);
                     stmt.setString(1, selectedType);
                 }
-                
+
                 ResultSet rs = stmt.executeQuery();
+
                 
-                StringBuilder equipment = new StringBuilder("=== EQUIPMENT TYPE: " + selectedType.toUpperCase() + " ===\n");
-                boolean found = false;
-                while (rs.next()) {
-                    found = true;
-                    equipment.append("ID: ").append(rs.getString("Equipment_id"))
-                            .append(" | Name: ").append(rs.getString("Qname"))
-                            .append(" | Fee: $").append(rs.getDouble("Rental_fee"))
-                            .append(" | Available: ").append(rs.getInt("Available_quantity"))
-                            .append("\nDescription: ").append(rs.getString("Description"))
-                            .append("\n---------------------------\n");
-                }
-                if (!found) {
-                    equipment.append("No " + selectedType.toLowerCase() + " equipment available.");
-                }
-                resultArea.setText(equipment.toString());
-            } catch (SQLException ex) {
+            ModernUI.populateTable(resultsTable, rs);} catch (SQLException ex) {
                 ex.printStackTrace();
-                resultArea.setText("Error searching equipment: " + ex.getMessage());
+                JOptionPane.showMessageDialog(this, "Error searching equipment: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
             }
         }
     }
@@ -558,26 +587,26 @@ public class CustomerGUI extends JFrame {
     private JPanel createRentalPanel() {
         JPanel panel = new JPanel(new GridLayout(4, 1, 10, 10));
         panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-        
+
         JButton createRentalBtn = new JButton("Create New Rental");
         JButton viewRentalHistoryBtn = new JButton("View My Rental History & Details");
         JButton cancelRentalBtn = new JButton("Cancel Rental");
-        
+
         panel.add(createRentalBtn);
         panel.add(viewRentalHistoryBtn);
         panel.add(cancelRentalBtn);
-        
+
         createRentalBtn.addActionListener(e -> createRental());
         viewRentalHistoryBtn.addActionListener(e -> viewRentalHistory());
         cancelRentalBtn.addActionListener(e -> cancelMyRental());
-        
+
         return panel;
     }
-    
+
       private void createRental() {
         JPanel panel = new JPanel(new GridLayout(5, 2, 10, 10));
 
-    
+
         JTextArea itemsArea = new JTextArea(5, 30);
         JScrollPane itemsScroll = new JScrollPane(itemsArea);
 
@@ -607,19 +636,19 @@ public class CustomerGUI extends JFrame {
             String receiveInput = receiveDateTimeField.getText().trim();
             String returnInput = returnDateTimeField.getText().trim();
 
-         
+
             if (itemsArea.getText().trim().isEmpty()) {
                 JOptionPane.showMessageDialog(this, "Please enter at least one equipment and quantity.");
                 return;
             }
 
-            
+
             if (!isValidTimeFormat(receiveInput) || !isValidTimeFormat(returnInput)) {
                 JOptionPane.showMessageDialog(this, "Invalid datetime format! Use YYYY-MM-DD HH:MM");
                 return;
             }
 
-          
+
             try {
                 SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm");
                 sdf.setLenient(false);
@@ -641,7 +670,7 @@ public class CustomerGUI extends JFrame {
                     return;
                 }
 
-                
+
                 if (!isValidTimeFormat(receiveInput) || !isValidTimeFormat(returnInput)) {
                     JOptionPane.showMessageDialog(this, "Invalid time! Hours must be 00-23, minutes 00-59");
                     return;
@@ -652,7 +681,7 @@ public class CustomerGUI extends JFrame {
                 return;
             }
 
-            
+
             List<String> equipmentIds = new ArrayList<>();
             List<Integer> quantities = new ArrayList<>();
 
@@ -724,7 +753,7 @@ public class CustomerGUI extends JFrame {
 
                         if (!rs.next()) {
                             conn.rollback();
-                            resultArea.setText("Error: Equipment ID not found: " + eqId);
+                            JOptionPane.showMessageDialog(this, "Equipment ID not found: " + eqId, "Error", JOptionPane.ERROR_MESSAGE);
                             return;
                         }
 
@@ -733,8 +762,7 @@ public class CustomerGUI extends JFrame {
 
                         if (availableQty < requestedQty) {
                             conn.rollback();
-                            resultArea.setText("Error: Not enough equipment available for " + eqId +
-                                    "!\nAvailable: " + availableQty + ", Requested: " + requestedQty);
+                            JOptionPane.showMessageDialog(this, "Not enough equipment available for " + eqId + ". Available: " + availableQty + ", Requested: " + requestedQty, "Error", JOptionPane.ERROR_MESSAGE);
                             return;
                         }
 
@@ -784,19 +812,19 @@ public class CustomerGUI extends JFrame {
                                .append("\n");
                     }
 
-                    resultArea.setText(summary.toString());
+                    ModernUI.populateSingleColumn(resultsTable, "Rental", summary.toString());
 
                 } catch (SQLException ex) {
                     conn.rollback();
                     ex.printStackTrace();
-                    resultArea.setText("Error creating rental: " + ex.getMessage());
+                    JOptionPane.showMessageDialog(this, "Error creating rental: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
                 } finally {
                     conn.setAutoCommit(true);
                 }
 
             } catch (SQLException ex) {
                 ex.printStackTrace();
-                resultArea.setText("Error creating rental: " + ex.getMessage());
+                JOptionPane.showMessageDialog(this, "Error creating rental: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
             }
         }
     }
@@ -805,32 +833,32 @@ public class CustomerGUI extends JFrame {
         try {
              String timePart = datetime.substring(11);
             String[] timeComponents = timePart.split(":");
-            
+
             if (timeComponents.length != 2) return false;
-            
+
             int hours = Integer.parseInt(timeComponents[0]);
             int minutes = Integer.parseInt(timeComponents[1]);
-            
+
             return hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59;
         } catch (Exception e) {
             return false;
         }
     }
-  
-    
+
+
     private long calculateRentalDays(String startDate, String endDate) {
         try {
             SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
             Date start = sdf.parse(startDate);
             Date end = sdf.parse(endDate);
             long diff = end.getTime() - start.getTime();
-            return diff / (24 * 60 * 60 * 1000) + 1; 
+            return diff / (24 * 60 * 60 * 1000) + 1;
         } catch (Exception e) {
             return 1;
         }
     }
-    
-   
+
+
     private void viewRentalHistory() {
         try (Connection conn = DBConnection.getConnection()) {
         	String sql = "SELECT r.Rental_num, r.Receive_datetime, r.Return_datetime, " +
@@ -842,38 +870,20 @@ public class CustomerGUI extends JFrame {
                     "LEFT JOIN BILL b ON r.Rental_num = b.Bill_rental_num " +
                     "WHERE r.Rental_customer_id = ? " +
                     "ORDER BY r.Receive_datetime DESC";
-            
+
             PreparedStatement stmt = conn.prepareStatement(sql);
             stmt.setString(1, loggedInCustomerId);
-            
+
             ResultSet rs = stmt.executeQuery();
+
             
-            StringBuilder rentals = new StringBuilder("=== MY RENTAL HISTORY & DETAILS ===\n");
-            boolean found = false;
-            while (rs.next()) {
-                found = true;
-                rentals.append("Rental #: ").append(rs.getString("Rental_num"))
-                      .append("\nEquipment: ").append(rs.getString("Qname"))
-                      .append("\nQuantity: ").append(rs.getInt("Equipment_quantity"))
-                      .append(" | Daily Fee: $").append(rs.getDouble("Rental_fee"))
-                      .append("\nReceive: ").append(rs.getString("Receive_datetime"))
-                      .append("\nReturn: ").append(rs.getString("Return_datetime"))
-                      
-                      .append("\nBill ID: ").append(rs.getString("Bill_id"))
-                      .append(" | Total: $").append(rs.getDouble("Total_amount"))
-                      .append("\n===========================\n");
-            }
-            if (!found) {
-                rentals.append("You don't have any rentals yet.");
-            }
-            resultArea.setText(rentals.toString());
-        } catch (SQLException ex) {
+            ModernUI.populateTable(resultsTable, rs);} catch (SQLException ex) {
             ex.printStackTrace();
-            resultArea.setText("Error viewing rentals: " + ex.getMessage());
+            JOptionPane.showMessageDialog(this, "Error viewing rentals: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
-    
-   
+
+
     private void cancelMyRental() {
         try (Connection conn = DBConnection.getConnection()) {
             String checkSql = "SELECT r.Rental_num, r.Receive_datetime, e.Qname " +
@@ -884,7 +894,7 @@ public class CustomerGUI extends JFrame {
             PreparedStatement checkStmt = conn.prepareStatement(checkSql);
             checkStmt.setString(1, loggedInCustomerId);
             ResultSet rs = checkStmt.executeQuery();
-            
+
             StringBuilder rentalOptions = new StringBuilder("Your Current Rentals:\n");
             boolean hasRentals = false;
             while (rs.next()) {
@@ -896,21 +906,21 @@ public class CustomerGUI extends JFrame {
                             .append(rs.getString("Receive_datetime"))
                             .append(")\n");
             }
-            
+
             if (!hasRentals) {
                 JOptionPane.showMessageDialog(this, "You don't have any current rentals to cancel.");
                 return;
             }
-            
-            String rentalNum = JOptionPane.showInputDialog(this, 
+
+            String rentalNum = JOptionPane.showInputDialog(this,
                 rentalOptions.toString() + "\nEnter Rental Number to cancel:");
-                
+
             if (rentalNum == null || rentalNum.trim().isEmpty()) {
-                return; 
+                return;
             }
-            
+
             rentalNum = rentalNum.trim();
-            
+
             String verifySql = "SELECT m.M_equipment_id, m.Equipment_quantity " +
                               "FROM RENTAL r " +
                               "JOIN MAKES m ON r.Rental_num = m.M_rental_number " +
@@ -919,22 +929,22 @@ public class CustomerGUI extends JFrame {
             verifyStmt.setString(1, rentalNum);
             verifyStmt.setString(2, loggedInCustomerId);
             ResultSet verifyRs = verifyStmt.executeQuery();
-            
+
             if (!verifyRs.next()) {
                 JOptionPane.showMessageDialog(this, "Rental not found or you don't have permission to cancel it.");
                 return;
             }
-            
+
             String equipmentId = verifyRs.getString("M_equipment_id");
             int quantity = verifyRs.getInt("Equipment_quantity");
-            
-            int confirm = JOptionPane.showConfirmDialog(this, 
-                "Are you sure you want to cancel rental " + rentalNum + "?", 
+
+            int confirm = JOptionPane.showConfirmDialog(this,
+                "Are you sure you want to cancel rental " + rentalNum + "?",
                 "Confirm Cancellation", JOptionPane.YES_NO_OPTION);
-                
+
             if (confirm == JOptionPane.YES_OPTION) {
                  conn.setAutoCommit(false);
-                
+
                 try {
                     String makesSql = "DELETE FROM MAKES WHERE M_rental_number = ? AND M_equipment_id = ? AND M_customer_id = ?";
                     PreparedStatement makesStmt = conn.prepareStatement(makesSql);
@@ -942,29 +952,28 @@ public class CustomerGUI extends JFrame {
                     makesStmt.setString(2, equipmentId);
                     makesStmt.setString(3, loggedInCustomerId);
                     makesStmt.executeUpdate();
-                    
+
                     String deleteBillSql = "DELETE FROM BILL WHERE Bill_rental_num = ?";
                     PreparedStatement deleteBillStmt = conn.prepareStatement(deleteBillSql);
                     deleteBillStmt.setString(1, rentalNum);
                     deleteBillStmt.executeUpdate();
-                    
+
                      String rentalSql = "DELETE FROM RENTAL WHERE Rental_num = ?";
                     PreparedStatement rentalStmt = conn.prepareStatement(rentalSql);
                     rentalStmt.setString(1, rentalNum);
                     int rows = rentalStmt.executeUpdate();
-                    
+
                     if (rows > 0) {
                        String restoreSql = "UPDATE EQUIPMENT SET Available_quantity = Available_quantity + ? WHERE Equipment_id = ?";
                         PreparedStatement restoreStmt = conn.prepareStatement(restoreSql);
                         restoreStmt.setInt(1, quantity);
                         restoreStmt.setString(2, equipmentId);
                         restoreStmt.executeUpdate();
-                        
+
                         conn.commit();
-                        resultArea.setText("Rental " + rentalNum + " cancelled successfully!");
-                    } else {
+                        ModernUI.populateSingleColumn(resultsTable, "Message", "Rental " + rentalNum + " cancelled successfully.");} else {
                         conn.rollback();
-                        resultArea.setText("Failed to cancel rental.");
+                        ModernUI.populateSingleColumn(resultsTable, "Message", "Failed to cancel rental.");
                     }
                 } catch (SQLException ex) {
                     conn.rollback();
@@ -975,22 +984,22 @@ public class CustomerGUI extends JFrame {
             }
         } catch (SQLException ex) {
             ex.printStackTrace();
-            resultArea.setText("Error cancelling rental: " + ex.getMessage());
+            JOptionPane.showMessageDialog(this, "Error cancelling rental: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
 
     private JPanel createBillPanel() {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-        
+
         JButton viewMyBillsBtn = new JButton("View My Bills");
         panel.add(viewMyBillsBtn, BorderLayout.NORTH);
-        
+
         viewMyBillsBtn.addActionListener(e -> viewMyBills());
-        
+
         return panel;
     }
-    
+
     private void viewMyBills() {
         try (Connection conn = DBConnection.getConnection()) {
             String sql = "SELECT b.Bill_id, b.Bill_date, b.Payment_method, b.Total_amount, " +
@@ -999,30 +1008,16 @@ public class CustomerGUI extends JFrame {
                         "JOIN RENTAL r ON b.Bill_rental_num = r.Rental_num " +
                         "WHERE r.Rental_customer_id = ? " +
                         "ORDER BY b.Bill_date DESC";
-            
+
             PreparedStatement stmt = conn.prepareStatement(sql);
             stmt.setString(1, loggedInCustomerId);
-            
+
             ResultSet rs = stmt.executeQuery();
+
             
-            StringBuilder bills = new StringBuilder("=== MY BILLS ===\n");
-            boolean found = false;
-            while (rs.next()) {
-                found = true;
-                bills.append("Bill ID: ").append(rs.getString("Bill_id"))
-                    .append(" | Date: ").append(rs.getString("Bill_date"))
-                    .append(" | Payment Method: ").append(rs.getString("Payment_method"))
-                    .append(" | Amount: $").append(rs.getDouble("Total_amount"))
-                    .append(" | Rental #: ").append(rs.getString("Rental_num"))
-                    .append("\n---------------------------\n");
-            }
-            if (!found) {
-                bills.append("You don't have any bills yet.");
-            }
-            resultArea.setText(bills.toString());
-        } catch (SQLException ex) {
+            ModernUI.populateTable(resultsTable, rs);} catch (SQLException ex) {
             ex.printStackTrace();
-            resultArea.setText("Error viewing bills: " + ex.getMessage());
+            JOptionPane.showMessageDialog(this, "Error viewing bills: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
  }
      private JPanel createQueriesPanel() {
@@ -1060,27 +1055,10 @@ public class CustomerGUI extends JFrame {
             stmt.setString(1, loggedInCustomerId);
             ResultSet rs = stmt.executeQuery();
 
-            StringBuilder sb = new StringBuilder("=== CUSTOMER + MAKES ===\n");
-            boolean found = false;
-            while (rs.next()) {
-                found = true;
-                sb.append("Customer: ")
-                  .append(rs.getString("Fname")).append(" ")
-                  .append(rs.getString("Mname") == null ? "" : rs.getString("Mname") + " ")
-                  .append(rs.getString("Lname")).append("\n")
-                  .append("Customer ID: ").append(rs.getString("Customer_id")).append("\n")
-                  .append("Rental #: ").append(rs.getString("M_rental_number")).append("\n")
-                  .append("---------------------------\n");
-            }
-
-            if (!found) {
-                sb.append("No rentals found for this customer.");
-            }
-
-            resultArea.setText(sb.toString());
-        } catch (SQLException ex) {
+            
+            ModernUI.populateTable(resultsTable, rs);} catch (SQLException ex) {
             ex.printStackTrace();
-            resultArea.setText("Error running Query 3: " + ex.getMessage());
+            JOptionPane.showMessageDialog(this, "Error running Query 3: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
    private void runQuery4() {
@@ -1111,38 +1089,10 @@ public class CustomerGUI extends JFrame {
             stmt.setString(1, loggedInCustomerId);
             ResultSet rs = stmt.executeQuery();
 
-            StringBuilder sb = new StringBuilder("===  CUSTOMER + RENTAL + EQUIPMENT + BILL ===\n");
-            boolean found = false;
-            while (rs.next()) {
-                found = true;
-                sb.append("Customer: ")
-                  .append(rs.getString("Fname")).append(" ")
-                  .append(rs.getString("Mname") == null ? "" : rs.getString("Mname") + " ")
-                  .append(rs.getString("Lname")).append(" (")
-                  .append(rs.getString("Customer_id")).append(")\n");
-
-                sb.append("Rental #: ").append(rs.getString("Rental_num")).append("\n")
-                  .append("Receive: ").append(rs.getString("Receive_datetime")).append("\n")
-                  .append("Return: ").append(rs.getString("Return_datetime")).append("\n");
-
-                sb.append("Equipment: ").append(rs.getString("Qname"))
-                  .append(" | Type: ").append(rs.getString("Type"))
-                  .append(" | Qty: ").append(rs.getInt("Equipment_quantity"))
-                  .append(" | Daily Fee: $").append(rs.getDouble("Rental_fee")).append("\n");
-
-                sb.append("Bill ID: ").append(rs.getString("Bill_id"))
-                  .append(" | Total Amount: $").append(rs.getDouble("Total_amount"))
-                  .append("\n---------------------------\n");
-            }
-
-            if (!found) {
-                sb.append("No rentals/equipment/bills found for this customer.");
-            }
-
-            resultArea.setText(sb.toString());
-        } catch (SQLException ex) {
+            
+            ModernUI.populateTable(resultsTable, rs);} catch (SQLException ex) {
             ex.printStackTrace();
-            resultArea.setText("Error running Query 4: " + ex.getMessage());
+            JOptionPane.showMessageDialog(this, "Error running Query 4: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
 
