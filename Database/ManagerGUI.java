@@ -9,9 +9,10 @@ public class ManagerGUI extends JFrame {
 
     private String loggedInManagerId;
     private String managerBranchId;
-    private JTextArea resultArea;
+    private JTable resultsTable;
 
     public ManagerGUI() {
+        ModernUI.setupLaf();
         setTitle("Manager Menu");
         setSize(900, 700);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
@@ -22,6 +23,47 @@ public class ManagerGUI extends JFrame {
             dispose();
         }
     }
+    public ManagerGUI(String managerId) {
+        ModernUI.setupLaf();
+        setTitle("Manager");
+        setSize(1200, 750);
+        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        setLayout(new BorderLayout());
+        loggedInManagerId = managerId;
+
+        Connection conn = DBConnection.getConnection();
+        if (conn == null) {
+            JOptionPane.showMessageDialog(this, "Database connection failed.");
+            dispose();
+            return;
+        }
+
+        try {
+            PreparedStatement ps = conn.prepareStatement(
+                    "SELECT Branch_id FROM BRANCH WHERE Branch_manager_id = ?"
+            );
+            ps.setString(1, loggedInManagerId);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                managerBranchId = rs.getString(1);
+            } else {
+                JOptionPane.showMessageDialog(this, "This employee is not registered as a branch manager.");
+                dispose();
+                return;
+            }
+            rs.close();
+            ps.close();
+        } catch (SQLException ex) {
+            JOptionPane.showMessageDialog(this, "Login error: " + ex.getMessage());
+            dispose();
+            return;
+        }
+
+        createManagerGUI();
+        setLocationRelativeTo(null);
+        setVisible(true);
+    }
+
 
     private boolean loginManager() {
         JPanel panel = new JPanel(new GridLayout(2, 2, 10, 10));
@@ -75,12 +117,27 @@ public class ManagerGUI extends JFrame {
     }
 
     private void createManagerGUI() {
-        JPanel topPanel = new JPanel(new BorderLayout());
-        JLabel welcomeLabel = new JLabel("Manager: " + loggedInManagerId + " | Branch: " + managerBranchId, JLabel.CENTER);
-        welcomeLabel.setFont(new Font("Arial", Font.BOLD, 16));
-        topPanel.add(welcomeLabel, BorderLayout.CENTER);
+        JPanel root = new JPanel(new BorderLayout());
+        root.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
 
-        JButton logoutBtn = new JButton("Logout");
+        JPanel top = new JPanel(new BorderLayout(12, 0));
+        top.setBorder(BorderFactory.createEmptyBorder(10, 12, 10, 12));
+        top.setBackground(new Color(20, 24, 32));
+
+        JLabel title = new JLabel("Photography Equipment Rental");
+        title.setForeground(Color.WHITE);
+        title.setFont(new Font("SansSerif", Font.BOLD, 18));
+
+        JLabel subtitle = new JLabel("Manager: " + loggedInManagerId + "   •   Branch: " + managerBranchId);
+        subtitle.setForeground(new Color(200, 205, 215));
+        subtitle.setFont(new Font("SansSerif", Font.PLAIN, 13));
+
+        JPanel titleBox = new JPanel(new GridLayout(2,1));
+        titleBox.setOpaque(false);
+        titleBox.add(title);
+        titleBox.add(subtitle);
+
+        JButton logoutBtn = ModernUI.primaryButton("Logout");
         logoutBtn.addActionListener(e -> {
             int confirm = JOptionPane.showConfirmDialog(this, "Logout?", "Confirm", JOptionPane.YES_NO_OPTION);
             if (confirm == JOptionPane.YES_OPTION) {
@@ -88,25 +145,64 @@ public class ManagerGUI extends JFrame {
                 new MainMenu().setVisible(true);
             }
         });
-        topPanel.add(logoutBtn, BorderLayout.EAST);
-        add(topPanel, BorderLayout.NORTH);
+        top.add(titleBox, BorderLayout.WEST);
+        top.add(logoutBtn, BorderLayout.EAST);
 
-        JTabbedPane tabbedPane = new JTabbedPane();
-        tabbedPane.addTab("Manage Employees", createEmployeePanel());
-        tabbedPane.addTab("Manage Equipment", createEquipmentPanel());
-        tabbedPane.addTab("Manage Customers", createCustomerPanel());
-        tabbedPane.addTab("Manage Rentals", createRentalPanel());
-        tabbedPane.addTab("Branch Info", createBranchPanel());
-        add(tabbedPane, BorderLayout.CENTER);
+        JPanel sidebar = ModernUI.sidebar();
+        JButton navEmployees = ModernUI.navButton("Employees");
+        JButton navEquipment  = ModernUI.navButton("Equipment");
+        JButton navCustomers  = ModernUI.navButton("Customers");
+        JButton navRentals    = ModernUI.navButton("Rentals");
+        JButton navBranch     = ModernUI.navButton("Branch info");
 
-        resultArea = new JTextArea(8, 50);
-        resultArea.setEditable(false);
-        JScrollPane scrollPane = new JScrollPane(resultArea);
-        add(scrollPane, BorderLayout.SOUTH);
+        sidebar.add(ModernUI.sidebarHeader("Dashboard"));
+        sidebar.add(navEmployees);
+        sidebar.add(navEquipment);
+        sidebar.add(navCustomers);
+        sidebar.add(navRentals);
+        sidebar.add(Box.createVerticalStrut(10));
+        sidebar.add(navBranch);
+        sidebar.add(Box.createVerticalGlue());
 
+        CardLayout cardsLayout = new CardLayout();
+        JPanel cards = new JPanel(cardsLayout);
+        cards.setOpaque(false);
+
+        cards.add(ModernUI.card("Manage Employees", createEmployeePanel()), "EMP");
+        cards.add(ModernUI.card("Manage Equipment", createEquipmentPanel()), "EQ");
+        cards.add(ModernUI.card("Manage Customers", createCustomerPanel()), "CUST");
+        cards.add(ModernUI.card("Manage Rentals", createRentalPanel()), "RENT");
+        cards.add(ModernUI.card("Branch Info", createBranchPanel()), "BRANCH");
+
+        
+resultsTable = ModernUI.makeResultsTable();
+JScrollPane consoleScroll = new JScrollPane(resultsTable);
+consoleScroll.setBorder(BorderFactory.createEmptyBorder());
+JPanel consoleCard = ModernUI.card("", consoleScroll);
+
+        JSplitPane vertical = new JSplitPane(JSplitPane.VERTICAL_SPLIT, cards, consoleCard);
+        vertical.setResizeWeight(0.72);
+        vertical.setBorder(null);
+
+        JSplitPane horizontal = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, sidebar, vertical);
+        horizontal.setResizeWeight(0.18);
+        horizontal.setBorder(null);
+
+        root.add(top, BorderLayout.NORTH);
+        root.add(horizontal, BorderLayout.CENTER);
+
+        setContentPane(root);
         setLocationRelativeTo(null);
         setVisible(true);
-    }
+
+        navEmployees.addActionListener(e -> cardsLayout.show(cards, "EMP"));
+        navEquipment.addActionListener(e -> cardsLayout.show(cards, "EQ"));
+        navCustomers.addActionListener(e -> cardsLayout.show(cards, "CUST"));
+        navRentals.addActionListener(e -> cardsLayout.show(cards, "RENT"));
+        navBranch.addActionListener(e -> cardsLayout.show(cards, "BRANCH"));
+        cardsLayout.show(cards, "EMP");
+
+}
 
     private JPanel createEmployeePanel() {
         JPanel panel = new JPanel(new GridLayout(4, 1, 10, 10));
@@ -232,8 +328,7 @@ public class ManagerGUI extends JFrame {
             stmt.setString(8, managerBranchId);
 
             int rows = stmt.executeUpdate();
-            resultArea.setText(rows > 0 ? "Employee added successfully.\nID: " + id : "Failed to add employee.");
-        } catch (SQLException ex) {
+            ModernUI.populateSingleColumn(resultsTable, "Message", String.valueOf(rows > 0 ? "Employee added successfully.\nID: " + id : "Failed to add employee."));} catch (SQLException ex) {
             showDbError(ex, "adding employee");
         }
     }
@@ -316,8 +411,7 @@ public class ManagerGUI extends JFrame {
             stmt.setString(4, empId);
 
             int rows = stmt.executeUpdate();
-            resultArea.setText(rows > 0 ? "Employee updated successfully." : "Employee not found.");
-        } catch (SQLException ex) {
+            ModernUI.populateSingleColumn(resultsTable, "Message", String.valueOf(rows > 0 ? "Employee updated successfully." : "Employee not found."));} catch (SQLException ex) {
             showDbError(ex, "updating employee");
         }
     }
@@ -341,8 +435,7 @@ public class ManagerGUI extends JFrame {
             PreparedStatement stmt = conn.prepareStatement(sql);
             stmt.setString(1, empId);
             int rows = stmt.executeUpdate();
-            resultArea.setText(rows > 0 ? "Employee deleted successfully." : "Employee not found.");
-        } catch (SQLException ex) {
+            ModernUI.populateSingleColumn(resultsTable, "Message", String.valueOf(rows > 0 ? "Employee deleted successfully." : "Employee not found."));} catch (SQLException ex) {
             showDbError(ex, "deleting employee");
         }
     }
@@ -361,22 +454,8 @@ public class ManagerGUI extends JFrame {
             stmt.setString(1, managerBranchId);
             ResultSet rs = stmt.executeQuery();
 
-            StringBuilder sb = new StringBuilder("=== Employees in Branch " + managerBranchId + " ===\n");
-            boolean found = false;
-            while (rs.next()) {
-                found = true;
-                sb.append(rs.getString("Employee_id")).append(" - ")
-                  .append(rs.getString("Fname")).append(" ")
-                  .append(rs.getString("Mname") == null ? "" : rs.getString("Mname") + " ")
-                  .append(rs.getString("Lname"))
-                  .append(" | Email: ").append(rs.getString("Eemail"))
-                  .append(" | Phone: ").append(rs.getString("Ephone_number"))
-                  .append(" | Salary: ").append(rs.getDouble("Salary"))
-                  .append("\n");
-            }
-            if (!found) sb.append("No employees found for this branch.");
-            resultArea.setText(sb.toString());
-        } catch (SQLException ex) {
+            
+            ModernUI.populateTable(resultsTable, rs);} catch (SQLException ex) {
             showDbError(ex, "retrieving employees in branch");
         }
     }
@@ -486,8 +565,7 @@ public class ManagerGUI extends JFrame {
             stmt.setInt(7, qty);
 
             int rows = stmt.executeUpdate();
-            resultArea.setText(rows > 0 ? "Equipment added successfully.\nID: " + id : "Failed to add equipment.");
-        } catch (SQLException ex) {
+            ModernUI.populateSingleColumn(resultsTable, "Message", String.valueOf(rows > 0 ? "Equipment added successfully.\nID: " + id : "Failed to add equipment."));} catch (SQLException ex) {
             showDbError(ex, "adding equipment");
         }
     }
@@ -552,8 +630,7 @@ public class ManagerGUI extends JFrame {
             stmt.setString(4, eqId);
 
             int rows = stmt.executeUpdate();
-            resultArea.setText(rows > 0 ? "Equipment updated successfully." : "Equipment not found.");
-        } catch (SQLException ex) {
+            ModernUI.populateSingleColumn(resultsTable, "Message", String.valueOf(rows > 0 ? "Equipment updated successfully." : "Equipment not found."));} catch (SQLException ex) {
             showDbError(ex, "updating equipment");
         }
     }
@@ -577,8 +654,7 @@ public class ManagerGUI extends JFrame {
             PreparedStatement stmt = conn.prepareStatement(sql);
             stmt.setString(1, eqId);
             int rows = stmt.executeUpdate();
-            resultArea.setText(rows > 0 ? "Equipment deleted successfully." : "Equipment not found.");
-        } catch (SQLException ex) {
+            ModernUI.populateSingleColumn(resultsTable, "Message", String.valueOf(rows > 0 ? "Equipment deleted successfully." : "Equipment not found."));} catch (SQLException ex) {
             showDbError(ex, "deleting equipment");
         }
     }
@@ -596,21 +672,8 @@ public class ManagerGUI extends JFrame {
             Statement stmt = conn.createStatement();
             ResultSet rs = stmt.executeQuery(sql);
 
-            StringBuilder sb = new StringBuilder("=== AVAILABLE EQUIPMENT ===\n");
-            boolean found = false;
-            while (rs.next()) {
-                found = true;
-                sb.append("ID: ").append(rs.getString("Equipment_id"))
-                  .append(" | Name: ").append(rs.getString("Qname"))
-                  .append(" | Type: ").append(rs.getString("Type"))
-                  .append(" | Fee: ").append(rs.getDouble("Rental_fee"))
-                  .append(" | Available: ").append(rs.getInt("Available_quantity"))
-                  .append("\nDescription: ").append(rs.getString("Description"))
-                  .append("\n---------------------------\n");
-            }
-            if (!found) sb.append("No equipment currently available.");
-            resultArea.setText(sb.toString());
-        } catch (SQLException ex) {
+            
+            ModernUI.populateTable(resultsTable, rs);} catch (SQLException ex) {
             showDbError(ex, "retrieving available equipment");
         }
     }
@@ -661,7 +724,7 @@ public class ManagerGUI extends JFrame {
                   .append("\n---------------------------\n");
             }
             if (!found) sb.append("No customers found.");
-            resultArea.setText(sb.toString());
+            ModernUI.populateSingleColumn(resultsTable, "Result", sb.toString());
         } catch (SQLException ex) {
             showDbError(ex, "retrieving customers");
         }
@@ -753,7 +816,7 @@ public class ManagerGUI extends JFrame {
 
             if (!found) sb.append("No records found.");
 
-            resultArea.setText(sb.toString());
+            ModernUI.populateSingleColumn(resultsTable, "Result", sb.toString());
 
         } catch (SQLException ex) {
             showDbError(ex, "retrieving rental details (Q4)");
@@ -807,7 +870,7 @@ public class ManagerGUI extends JFrame {
             if (!found) {
                 sb.append("No active rentals found.");
             }
-            resultArea.setText(sb.toString());
+            ModernUI.populateSingleColumn(resultsTable, "Result", sb.toString());
         } catch (SQLException ex) {
             showDbError(ex, "retrieving active rentals");
         }
@@ -852,7 +915,7 @@ public class ManagerGUI extends JFrame {
             if (!found) {
                 sb.append("No customer data found.");
             }
-            resultArea.setText(sb.toString());
+            ModernUI.populateSingleColumn(resultsTable, "Result", sb.toString());
         } catch (SQLException ex) {
             showDbError(ex, "retrieving customer spending summary");
         }
@@ -875,22 +938,8 @@ public class ManagerGUI extends JFrame {
             PreparedStatement stmt = conn.prepareStatement(sql);
             ResultSet rs = stmt.executeQuery();
 
-            StringBuilder sb = new StringBuilder("=== MOST RENTED EQUIPMENT ===\n");
-            boolean found = false;
-            while (rs.next()) {
-                found = true;
-                sb.append("ID: ").append(rs.getString("Equipment_id"))
-                  .append(" | Name: ").append(rs.getString("Qname"))
-                  .append(" | Type: ").append(rs.getString("Type"))
-                  .append(" | Total Rented: ").append(rs.getInt("Total_rented_quantity"))
-                  .append("\n---------------------------\n");
-            }
-
-            if (!found) {
-                sb.append("No rental data found for equipment.");
-            }
-            resultArea.setText(sb.toString());
-        } catch (SQLException ex) {
+            
+            ModernUI.populateTable(resultsTable, rs);} catch (SQLException ex) {
             showDbError(ex, "retrieving most rented equipment");
         }
     }
@@ -910,25 +959,8 @@ public class ManagerGUI extends JFrame {
             PreparedStatement stmt = conn.prepareStatement(sql);
             ResultSet rs = stmt.executeQuery();
 
-            StringBuilder sb = new StringBuilder("=== OUT OF STOCK EQUIPMENT ===\n");
-            boolean found = false;
-            while (rs.next()) {
-                found = true;
-                sb.append("ID: ").append(rs.getString("Equipment_id"))
-                  .append(" | Name: ").append(rs.getString("Qname"))
-                  .append(" | Type: ").append(rs.getString("Type"))
-                  .append("\nDescription: ").append(rs.getString("Description"))
-                  .append("\nPrice: ").append(rs.getDouble("Price"))
-                  .append(" | Rental Fee: ").append(rs.getDouble("Rental_fee"))
-                  .append(" | Available: ").append(rs.getInt("Available_quantity"))
-                  .append("\n---------------------------\n");
-            }
-
-            if (!found) {
-                sb.append("No equipment is completely out of stock.");
-            }
-            resultArea.setText(sb.toString());
-        } catch (SQLException ex) {
+            
+            ModernUI.populateTable(resultsTable, rs);} catch (SQLException ex) {
             showDbError(ex, "retrieving out of stock equipment");
         }
     }
@@ -958,7 +990,7 @@ public class ManagerGUI extends JFrame {
                 sb.append("Branch not found.");
             }
 
-            resultArea.setText(sb.toString());
+            ModernUI.populateSingleColumn(resultsTable, "Result", sb.toString());
         } catch (SQLException ex) {
             showDbError(ex, "retrieving branch info");
         }
@@ -993,7 +1025,7 @@ public class ManagerGUI extends JFrame {
 
             if (!found) sb.append("No stock records found for this branch.");
 
-            resultArea.setText(sb.toString());
+            ModernUI.populateSingleColumn(resultsTable, "Result", sb.toString());
         } catch (SQLException ex) {
             showDbError(ex, "retrieving branch stock");
         }
@@ -1013,14 +1045,13 @@ public class ManagerGUI extends JFrame {
 
     private void showDbError(SQLException ex, String action) {
         String msg = ex.getMessage();
-        JOptionPane.showMessageDialog(this, "Database error " + action + ":\n" + msg, "Database Error", JOptionPane.ERROR_MESSAGE);
-        resultArea.setText("Error " + action + ":\n" + msg);
+        JOptionPane.showMessageDialog(this, "Database error " + action + ":" + msg, "Database Error", JOptionPane.ERROR_MESSAGE);
+        ModernUI.populateSingleColumn(resultsTable, "Error", "Database error " + action + ":" + msg);
     }
 
     private void showConnectionError() {
         JOptionPane.showMessageDialog(this, "Could not connect to database. Please check connection settings.", "Connection Error", JOptionPane.ERROR_MESSAGE);
-        if (resultArea != null) {
-            resultArea.setText("Connection error: could not connect to database.");
-        }
+        ModernUI.populateSingleColumn(resultsTable, "Error", "Connection error: could not connect to database.");
     }
-}
+    }
+
